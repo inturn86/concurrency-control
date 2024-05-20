@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: concurrency-control
+
+
+  # JPA ??
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+        default_batch_fetch_size: 50
+    # data.sql? ?? ???? ?? ? ???? ??
+    defer-datasource-initialization: true
+
+  # MySql ??
+  datasource:
+    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    # TODO - db url ? password? ?? ?? ???? ??
+    url: jdbc:log4jdbc:mysql://${MYSQL_URL}:3306/pfit-v0.1
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 50
+    type: com.zaxxer.hikari.HikariDataSource
+    username: ${MYSQL_NAME}
+    password: ${MYSQL_PW}

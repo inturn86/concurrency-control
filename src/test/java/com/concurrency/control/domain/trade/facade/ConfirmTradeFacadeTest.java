@@ -61,7 +61,7 @@ class ConfirmTradeFacadeTest {
 
 	@Test
 	@DisplayName("낙관적 락 성공")
-	@RepeatedTest(100)
+	@RepeatedTest(200)
 	void optimisticLock_Success() throws InterruptedException {
 
 		final int concurrencyCnt = 10;
@@ -85,7 +85,7 @@ class ConfirmTradeFacadeTest {
 					.userId(o.getUserId())
 					.tradeId(consumer)
 					.build()
-			, (funParam) -> tradeService.getTradeByOptimisticId(funParam))))
+			, (tradeId) -> tradeService.getTradeByOptimisticId(tradeId))))
 		).collect(Collectors.toList());
 
 		userBuyExecutorList.forEach(Thread::start);
@@ -103,16 +103,12 @@ class ConfirmTradeFacadeTest {
 		assertEquals(userList.stream().filter(o -> o.getPoint() == (userPoint - price)).count(), 1);
 	}
 
-
-
-//	@Test
-//	@Transactional
-//	@Test
+	@Test
 	@DisplayName("비관적 락 성공")
-//	@RepeatedTest(20)
+	@RepeatedTest(200)
 	void pessimisticLock_Success() throws InterruptedException {
 
-		final int concurrencyCnt = 100;
+		final int concurrencyCnt = 10;
 
 		final int userPoint = 10000000;
 

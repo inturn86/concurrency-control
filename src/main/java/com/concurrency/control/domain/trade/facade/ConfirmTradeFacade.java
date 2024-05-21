@@ -29,7 +29,7 @@ public class ConfirmTradeFacade {
 		//사용자 조회.
 		User user = userService.getUserById(req.userId());
 
-		Trade trade = tradeService.getTradeByPessimisticId(req.tradeId());
+		Trade trade = fn.apply(req.tradeId());
 
 		//validate
 		if(user.getPoint() < trade.getPrice()) {

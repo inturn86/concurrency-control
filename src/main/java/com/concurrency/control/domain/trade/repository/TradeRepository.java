@@ -11,7 +11,9 @@ import java.util.Optional;
 @Repository
 public interface TradeRepository extends JpaRepository<Trade, Long> {
 
-
 	@Lock(LockModeType.OPTIMISTIC)
 	Optional<Trade> findByTradeId(Long tradeId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	Optional<Trade> findTradeByTradeId(Long tradeId);
 }

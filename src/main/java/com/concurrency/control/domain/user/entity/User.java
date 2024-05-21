@@ -1,5 +1,6 @@
 package com.concurrency.control.domain.user.entity;
 
+import com.concurrency.control.domain.trade.entity.Trade;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,4 +24,8 @@ public class User {
 	private String userName;
 
 	private Integer point;
+
+	public void deceasePoint(Integer price) {
+		this.point = this.getPoint() - price;
+	}
 }

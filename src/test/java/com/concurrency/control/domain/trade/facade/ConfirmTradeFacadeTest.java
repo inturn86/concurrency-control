@@ -7,9 +7,10 @@ import com.concurrency.control.domain.trade.vo.TradeStatus;
 import com.concurrency.control.domain.user.UserBuyExecutor;
 import com.concurrency.control.domain.user.entity.User;
 import com.concurrency.control.domain.user.service.UserService;
-import lombok.extern.slf4j.Slf4j;
-import org.hibernate.internal.log.SubSystemLogging;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.RepeatedTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -25,9 +26,6 @@ class ConfirmTradeFacadeTest {
 
 	@Autowired
 	private ConfirmTradeFacade confirmTradeFacade;
-
-	@Autowired
-	private SyncService syncService;
 
 	@Autowired
 	private UserService userService;
@@ -59,7 +57,6 @@ class ConfirmTradeFacadeTest {
 		tradeService.getTradeRepository().deleteAll();
 	}
 
-	@Test
 	@DisplayName("낙관적 락 성공")
 	@RepeatedTest(200)
 	void optimisticLock_Success() throws InterruptedException {
@@ -97,13 +94,12 @@ class ConfirmTradeFacadeTest {
 		List<User> userList = userService.getUserList();
 
 		Trade trade = tradeService.getTradeById(tradeId);
-//
+
 		assertEquals(trade.getTradeStatusCd(), TradeStatus.COMPLETE);
 
 		assertEquals(userList.stream().filter(o -> o.getPoint() == (userPoint - price)).count(), 1);
 	}
 
-	@Test
 	@DisplayName("비관적 락 성공")
 	@RepeatedTest(200)
 	void pessimisticLock_Success() throws InterruptedException {

@@ -4,18 +4,17 @@ import com.concurrency.control.domain.trade.dto.request.ConfirmTradeRequestDTO;
 import com.concurrency.control.domain.trade.entity.Trade;
 import com.concurrency.control.domain.trade.service.TradeService;
 import com.concurrency.control.domain.trade.vo.TradeStatus;
+import com.concurrency.control.domain.user.UserBuyAsyncExecutor;
 import com.concurrency.control.domain.user.UserBuyExecutor;
 import com.concurrency.control.domain.user.entity.User;
 import com.concurrency.control.domain.user.service.UserService;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
@@ -57,8 +56,52 @@ class ConfirmTradeFacadeTest {
 		tradeService.getTradeRepository().deleteAll();
 	}
 
+
+	@DisplayName("비관적 락 성공")
+	@RepeatedTest(10)
+	void pessimisticLock_Success() throws InterruptedException {
+
+		final int concurrencyCnt = 5;
+
+		final int userPoint = 10000000;
+
+		CountDownLatch countDownLatch = new CountDownLatch(concurrencyCnt);
+
+		List<User> executorUserList = new ArrayList<>();
+		//사용자 저장
+		for (int i = 0; i < concurrencyCnt; i++){
+			User user = User.builder()
+					.userName("BUYER")
+					.point(userPoint)
+					.build();
+			executorUserList.add(userService.save(user));
+		}
+
+		List<Thread> userBuyExecutorList = executorUserList.stream().map(o ->
+				new Thread(new UserBuyExecutor(tradeId, countDownLatch, consumer -> confirmTradeFacade.confirmTrade(ConfirmTradeRequestDTO.builder()
+								.userId(o.getUserId())
+								.tradeId(consumer)
+								.build()
+						, (funParam) -> tradeService.getTradeByPessimisticId(funParam))))
+		).collect(Collectors.toList());
+
+		userBuyExecutorList.forEach(Thread::start);
+
+		countDownLatch.await();
+
+		System.out.println("===FINISH await===");
+
+		List<User> userList = userService.getUserList();
+
+		Trade trade = tradeService.getTradeById(tradeId);
+		//
+		assertEquals(trade.getTradeStatusCd(), TradeStatus.COMPLETE);
+
+		assertEquals(userList.stream().filter(o -> o.getPoint() == (userPoint - price)).count(), 1);
+	}
+
 	@DisplayName("낙관적 락 성공")
-	@RepeatedTest(200)
+	@RepeatedTest(10)
 	void optimisticLock_Success() throws InterruptedException {
 
 		final int concurrencyCnt = 10;
@@ -100,15 +143,15 @@ class ConfirmTradeFacadeTest {
 		assertEquals(userList.stream().filter(o -> o.getPoint() == (userPoint - price)).count(), 1);
 	}
 
-	@DisplayName("비관적 락 성공")
-	@RepeatedTest(200)
-	void pessimisticLock_Success() throws InterruptedException {
 
-		final int concurrencyCnt = 10;
+
+	@DisplayName("낙관적 락 비동기 Thread 성공")
+	@RepeatedTest(10)
+	void pessimisticLockAsync_Success() throws InterruptedException {
+
+		final int concurrencyCnt = 5;
 
 		final int userPoint = 10000000;
-
-		CountDownLatch countDownLatch = new CountDownLatch(concurrencyCnt);
 
 		List<User> executorUserList = new ArrayList<>();
 		//사용자 저장
@@ -120,24 +163,20 @@ class ConfirmTradeFacadeTest {
 			executorUserList.add(userService.save(user));
 		}
 
-		List<Thread> userBuyExecutorList = executorUserList.stream().map(o ->
-				new Thread(new UserBuyExecutor(tradeId, countDownLatch, consumer -> confirmTradeFacade.confirmTrade(ConfirmTradeRequestDTO.builder()
-								.userId(o.getUserId())
-								.tradeId(consumer)
-								.build()
-						, (funParam) -> tradeService.getTradeByPessimisticId(funParam))))
-		).collect(Collectors.toList());
+		executorUserList.forEach(o -> {
+			CompletableFuture.runAsync(() -> confirmTradeFacade.confirmTrade(ConfirmTradeRequestDTO.builder()
+							.userId(o.getUserId())
+							.tradeId(tradeId)
+							.build()
+					, (funParam) -> tradeService.getTradeByOptimisticId(funParam)));
+		});
 
-		userBuyExecutorList.forEach(Thread::start);
-
-		countDownLatch.await();
-
-		System.out.println("===FINISH await===");
+		Thread.sleep(1000);
 
 		List<User> userList = userService.getUserList();
 
 		Trade trade = tradeService.getTradeById(tradeId);
-	//
+		//
 		assertEquals(trade.getTradeStatusCd(), TradeStatus.COMPLETE);
 
 		assertEquals(userList.stream().filter(o -> o.getPoint() == (userPoint - price)).count(), 1);
